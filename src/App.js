@@ -1,6 +1,15 @@
 import React from "react";
-import { Editor, EditorState, RichUtils, Modifier } from "draft-js";
-import ColorControls from "./components/ColorControl";
+import {
+  Editor,
+  EditorState,
+  RichUtils,
+  Modifier,
+  SelectionState,
+  genKey,
+  ContentBlock,
+} from "draft-js";
+import ColorControls, { styles } from "./components/ColorControl";
+import Headings from "./components/Headings";
 import { colorStyleMap } from "./components/StyleButton";
 import "./App.css";
 
@@ -94,28 +103,144 @@ function App() {
     onChange(RichUtils.toggleInlineStyle(editorState, "HIGHLIGHT"));
   }
 
+  function toggleBlockType(blockType) {
+    onChange(RichUtils.toggleBlockType(editorState, blockType));
+  }
+
+  function undoHandler() {
+    onChange(EditorState.undo(editorState));
+  }
+
+  function redoHandler() {
+    onChange(EditorState.redo(editorState));
+  }
+
+  function codeBlockHandler() {
+    onChange(RichUtils.toggleBlockType(editorState, "code-block"));
+  }
+
+  function orderedistHandler() {
+    onChange(RichUtils.toggleBlockType(editorState, "ordered-list-item"));
+  }
+
+  function unorderedListHandler() {
+    onChange(RichUtils.toggleBlockType(editorState, "unordered-list-item"));
+  }
+
+  function indentHandler(event) {
+    onChange(RichUtils.onTab(event, editorState, 4));
+  }
+
+  function outdentHandler(event) {
+    onChange(RichUtils.onTab(event, editorState, -4));
+  }
+
+  // function insertLink(type, data, text) {
+  //   const contentState = editorState.getCurrentContent();
+  //   const selection = editorState.getSelection();
+  //   const textWithSpace = text.concat(" ");
+  //   // create new content with text
+  //   const newContent = Modifier.insertText(
+  //     contentState,
+  //     selection,
+  //     textWithSpace
+  //   );
+  //   // create new link entity
+  //   const newContentWithEntity = newContent.createEntity(
+  //     type,
+  //     "MUTABLE",
+  //     { url: data },
+  //     false
+  //   );
+  //   const entityKey = newContentWithEntity.getLastCreatedEntityKey();
+  //   // create new selection with the inserted text
+  //   const anchorOffset = selection.getAnchorOffset();
+  //   const newSelection = new SelectionState({
+  //     anchorKey: selection.getAnchorKey(),
+  //     anchorOffset,
+  //     focusKey: selection.getAnchorKey(),
+  //     focusOffset: anchorOffset + text.length,
+  //   });
+  //   // and aply link entity to the inserted text
+  //   const newContentWithLink = Modifier.applyEntity(
+  //     newContentWithEntity,
+  //     newSelection,
+  //     entityKey
+  //   );
+  //   // create new state with link text
+  //   const withLinkText = EditorState.push(
+  //     editorState,
+  //     newContentWithLink,
+  //     "insert-characters"
+  //   );
+  //   // now lets add cursor right after the inserted link
+  //   const withProperCursor = EditorState.forceSelection(
+  //     withLinkText,
+  //     newContent.getSelectionAfter()
+  //   );
+  //   // update the editor with all changes
+  //   onChange(withProperCursor);
+  // }
+
   return (
     <>
       <div className="container">
         <div className="action-buttons">
-          <button onClick={boldClickHandler}>
+          <span style={styles.styleButton} onClick={boldClickHandler}>
             <b>B</b>
-          </button>
-          <button className="ml-2" onClick={italicClickHandler}>
+          </span>
+          <span style={styles.styleButton} onClick={italicClickHandler}>
             <i>I</i>
-          </button>
-          <button className="ml-2" onClick={underlineClickHandler}>
+          </span>
+          <span style={styles.styleButton} onClick={underlineClickHandler}>
             <u>U</u>
-          </button>
-          <button className="ml-2" onClick={strikeThroughClickHandler}>
+          </span>
+          <span style={styles.styleButton} onClick={strikeThroughClickHandler}>
             <s>S</s>
-          </button>
-          <button className="ml-2" onClick={highlightTextHandler}>
+          </span>
+          <span style={styles.styleButton} onClick={highlightTextHandler}>
             Highlight
-          </button>
+          </span>
         </div>
         <div>
           <ColorControls editorState={editorState} onToggle={toggleColor} />
+        </div>
+        <div className="mt-3">
+          <Headings onToggleHandler={toggleBlockType} />
+        </div>
+        <div className="mt-3">
+          <span style={styles.styleButton} onClick={orderedistHandler}>
+            Ordered List
+          </span>
+          <span style={styles.styleButton} onClick={unorderedListHandler}>
+            Unordered List
+          </span>
+          <span style={styles.styleButton} onClick={indentHandler}>
+            Indent
+          </span>
+          <span style={styles.styleButton} onClick={outdentHandler}>
+            Outdent
+          </span>
+        </div>
+
+        <div className="mt-3">
+          <span style={styles.styleButton} onClick={codeBlockHandler}>
+            Codeblock
+          </span>
+          {/* <span
+            style={styles.styleButton}
+            onClick={() =>
+              insertLink("LINK", "https://www.google.com", "Google")
+            }
+          >
+            Link
+          </span> */}
+          <span style={styles.styleButton} onClick={undoHandler}>
+            Undo
+          </span>
+          <span style={styles.styleButton} onClick={redoHandler}>
+            Redo
+          </span>
         </div>
 
         <div className="editor">
