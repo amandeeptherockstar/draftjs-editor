@@ -1,16 +1,25 @@
-import React from "react";
-import {
-  Editor,
-  EditorState,
-  RichUtils,
-  Modifier,
-  SelectionState,
-  genKey,
-  ContentBlock,
-} from "draft-js";
+import React, { useRef } from "react";
+import { EditorState, RichUtils, Modifier, AtomicBlockUtils } from "draft-js";
+// Editor that supports image rendering instead of using from Draft JS
+import Editor, { composeDecorators } from "draft-js-plugins-editor";
+// image plugin to handle image uploads
+import createImagePlugin from "draft-js-image-plugin";
+import createFocusPlugin from "draft-js-focus-plugin";
+import createAlignmentPlugin from "draft-js-alignment-plugin";
+import createResizeablePlugin from "draft-js-resizeable-plugin";
+// default stylesheet for image rendering inside editor
+import "draft-js-image-plugin/lib/plugin.css";
+// default stylesheet for focus plugin
+import "draft-js-focus-plugin/lib/plugin.css";
+// default stylesheet for alignment plugin
+import "draft-js-alignment-plugin/lib/plugin.css";
+// default stylesheet for resizable plugin
+
+import MediaRender from "./components/ImageUpload/MediaRender";
 import ColorControls, { styles } from "./components/ColorControl";
 import Headings from "./components/Headings";
 import { colorStyleMap } from "./components/StyleButton";
+
 import "./App.css";
 
 const highlightStyleMap = {
@@ -19,12 +28,27 @@ const highlightStyleMap = {
   },
 };
 
+const focusPlugin = createFocusPlugin();
+const alignmentPlugin = createAlignmentPlugin();
+const resizeablePlugin = createResizeablePlugin();
+const { AlignmentTool } = alignmentPlugin;
+
+const decorator = composeDecorators(
+  resizeablePlugin.decorator,
+  alignmentPlugin.decorator,
+  focusPlugin.decorator
+);
+const imagePlugin = createImagePlugin({ decorator });
+
+const plugins = [focusPlugin, alignmentPlugin, resizeablePlugin, imagePlugin];
+
 function App() {
   const [editorState, setEditorState] = React.useState(() =>
     EditorState.createEmpty()
   );
 
-  const editor = React.useRef(null);
+  const editor = useRef(null);
+  const fileUploadRef = useRef(null);
 
   function focusEditor() {
     editor.current.focus();
@@ -182,8 +206,53 @@ function App() {
   //   onChange(withProperCursor);
   // }
 
+  function addImageHandler(event) {
+    event.preventDefault();
+    // get base 64 string of image
+    const reader = new FileReader();
+    reader.readAsDataURL(event.target.files[0]);
+    reader.onload = function () {
+      onChange(imagePlugin.addImage(editorState, reader.result));
+      focusEditor();
+    };
+    reader.onerror = function (error) {
+      console.log("Error: ", error);
+    };
+    // setTimeout(() => this.focus(), 0);
+  }
+
+  function addImageFromUrl() {
+    const urlValue = window.prompt("Paste Image Link");
+    const contentState = editorState.getCurrentContent();
+    const contentStateWithEntity = contentState.createEntity(
+      "image",
+      "IMMUTABLE",
+      { src: urlValue }
+    );
+    const entityKey = contentStateWithEntity.getLastCreatedEntityKey();
+    const newEditorState = EditorState.set(
+      editorState,
+      { currentContent: contentStateWithEntity },
+      "create-entity"
+    );
+    onChange(
+      AtomicBlockUtils.insertAtomicBlock(newEditorState, entityKey, " ")
+    );
+  }
+
+  const selectImageFromSystem = () => {
+    fileUploadRef.current.click();
+  };
+
   return (
     <>
+      {/* Hide the input we will click on choose files using ref */}
+      <input
+        type="file"
+        ref={fileUploadRef}
+        onChange={addImageHandler}
+        style={{ display: "none" }}
+      />
       <div className="container">
         <div className="action-buttons">
           <span style={styles.styleButton} onClick={boldClickHandler}>
@@ -241,16 +310,25 @@ function App() {
           <span style={styles.styleButton} onClick={redoHandler}>
             Redo
           </span>
+          <span style={styles.styleButton} onClick={selectImageFromSystem}>
+            Upload Image
+          </span>
+          <span style={styles.styleButton} onClick={addImageFromUrl}>
+            URL Image
+          </span>
         </div>
 
         <div className="editor">
           <Editor
             customStyleMap={{ ...colorStyleMap, ...highlightStyleMap }}
+            blockRendererFn={MediaRender}
             ref={editor}
             editorState={editorState}
             onChange={onChange}
             handleKeyCommand={handleKeyCommand}
+            plugins={plugins}
           />
+          <AlignmentTool />
         </div>
       </div>
     </>
